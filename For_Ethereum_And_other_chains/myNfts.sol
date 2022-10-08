@@ -145,15 +145,30 @@ contract myNFT is ERC721Enumerable, Ownable {
         return "ipfs://YOUR_CID/";
     }
 
-
+   // 리믹스 상에서 한번에 약 최대 250개 정도 가능  
    // 원하는 유저에게 NFT를 줄 수 있음 (to : NFT를 받는 주소, _number : 몇개의 NFT를 줄것인지)
     function u_airdrop( address _to, uint _number) external onlyOwner() {
+        if(latestId + _number>limit){
+            revert OutOfNfts();
+        }
+
         for(uint i; i < _number; ++i){
-            if(latestId>=limit) {
-                revert OutOfNfts();
-            }
             ++latestId; 
             _safeMint(_to,latestId);
+        }
+    }
+
+    // 리믹스 상에서 한번에 약 최대 250개 정도 가능  
+    // ["유저주소", "유저주소2" ] 각 유저에게 한개씩 에어드랍.
+    // ex) ["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"]
+    function u_airdrop2(address[] calldata _to) external onlyOwner() {
+        uint size = _to.length;
+        if(latestId+size>limit) {
+            revert OutOfNfts();
+        }
+        for(uint i; i < size; ++i){
+            ++latestId; 
+          _safeMint(_to[i],latestId);
         }
     }
 
@@ -187,6 +202,5 @@ contract myNFT is ERC721Enumerable, Ownable {
       (bool _result,) = address(msg.sender).call{value:address(this).balance}("");
       if(!_result) revert FailedToWithdraw();
     }
-
 
 }
