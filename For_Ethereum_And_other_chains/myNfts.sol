@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Strings.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
-
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/security/ReentrancyGuard.sol";
 /*
 D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One 
 D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One D_One
@@ -73,7 +73,7 @@ NFT 발행 순서
 
 */
 
-contract myNFT is ERC721Enumerable, Ownable {
+contract myNFT is ERC721Enumerable, Ownable, ReentrancyGuard  {
     
     error WaitForACoupleOfBlocks(uint tillBlock, uint currentBlock);
     error InsufficientValue(uint paidPrice, uint price);
@@ -111,18 +111,17 @@ contract myNFT is ERC721Enumerable, Ownable {
        mint();
     }
 
-    function mint() public payable {
+    function mint() public payable nonReentrant() {
         if(NumberTracker[msg.sender] == 0 ? false : NumberTracker[msg.sender] + interval >= block.number) {
             revert WaitForACoupleOfBlocks(NumberTracker[msg.sender] + interval,block.number);
         }
         if(price != msg.value) {
             revert InsufficientValue(msg.value, price);
         }
-        if(latestId>=limit) {
+        if(latestId >= limit) {
             revert OutOfNfts();
         }
-        ++latestId;
-        _safeMint(msg.sender,latestId);
+        _safeMint(msg.sender, ++latestId);
         NumberTracker[msg.sender] = block.number;
     }
 
@@ -135,69 +134,65 @@ contract myNFT is ERC721Enumerable, Ownable {
         }else{
             return notReveledNFTURI;
         }
-
-       
     }
 
-    // Your_CID를 metadata CID로 변경해야 함
-    // ipfs://____ / 뒤에 슬래쉬 꼭 필요!!!
+    /// Your_CID를 metadata CID로 변경해야 함
+    /// ipfs://____ / 뒤에 슬래쉬 꼭 필요!!!
     function _baseURI() internal pure override returns (string memory) {
         return "ipfs://YOUR_CID/";
     }
 
-   // 리믹스 상에서 한번에 약 최대 250개 정도 가능  
-   // 원하는 유저에게 NFT를 줄 수 있음 (to : NFT를 받는 주소, _number : 몇개의 NFT를 줄것인지)
+   /// 리믹스 상에서 한번에 약 최대 250개 정도 가능  
+   /// 원하는 유저에게 NFT를 줄 수 있음 (to : NFT를 받는 주소, _number : 몇개의 NFT를 줄것인지)
     function u_airdrop( address _to, uint _number) external onlyOwner() {
-        if(latestId + _number>limit){
+        if(latestId + _number > limit){
             revert OutOfNfts();
         }
 
         for(uint i; i < _number; ++i){
-            ++latestId; 
-            _safeMint(_to,latestId);
+            _safeMint(_to, ++latestId);
         }
     }
 
-    // 리믹스 상에서 한번에 약 최대 250개 정도 가능  
-    // ["유저주소", "유저주소2" ] 각 유저에게 한개씩 에어드랍.
-    // ex) ["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"]
+    /// 리믹스 상에서 한번에 약 최대 250개 정도 가능  
+    /// ["유저주소", "유저주소2" ] 각 유저에게 한개씩 에어드랍.
+    /// ex) ["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"]
     function u_airdrop2(address[] calldata _to) external onlyOwner() {
-        uint size = _to.length;
-        if(latestId+size>limit) {
+        uint _size = _to.length;
+        if(latestId + _size > limit){
             revert OutOfNfts();
         }
-        for(uint i; i < size; ++i){
-            ++latestId; 
-          _safeMint(_to[i],latestId);
+        for(uint i; i < _size; ++i){
+          _safeMint(_to[i], ++latestId);
         }
     }
 
-    //NFT 판매 가격 변경하는 함수
+    /// NFT 판매 가격 변경하는 함수
     function u_setPrice(uint _price) external onlyOwner()  {
         price = _price;
     } 
 
-   //NFT 민트할 수 있는 간격 정하는 함수
+    /// NFT 민트할 수 있는 간격 정하는 함수
     function u_setInterval(uint _interval) external onlyOwner(){
         interval = _interval;
     } 
 
-   //NFT 실제 그림 몇 번째 블록에서 공개하는지 정하는 함수  
+    /// NFT 실제 그림 몇 번째 블록에서 공개하는지 정하는 함수  
     function u_setRevelingBlock(uint _revelingBlock) external onlyOwner(){
         revelingBlock = _revelingBlock + block.number;
     } 
      
-    //얼마후 NFT 실제 그림 공개하는지 보여주는 함수
+    /// 얼마후 NFT 실제 그림 공개하는지 보여주는 함수
     function u_whenToRevelNFTs() external view returns(uint) {
        return revelingBlock <= block.number  ? 0 : revelingBlock - block.number ;
     } 
    
-  // 현재 NFT 판매금액
+    /// 현재 NFT 판매금액
     function u_currentBalance() external view returns(uint) {
       return address(this).balance;
     }
     
- // 판매금액 출금하기
+    /// 판매금액 출금하기
     function u_withdraw() external onlyOwner() {
       (bool _result,) = address(msg.sender).call{value:address(this).balance}("");
       if(!_result) revert FailedToWithdraw();
