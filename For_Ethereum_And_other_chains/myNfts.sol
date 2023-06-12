@@ -98,7 +98,9 @@ contract myNFT is ERC721Enumerable, Ownable, ReentrancyGuard  {
         uint _interval,
         uint _revelingBlock,
         string memory _notReveledNFTURI
-    ) ERC721(_name, _symbol) 
+    )   
+        Ownable(msg.sender)  
+        ERC721(_name, _symbol) 
     {
         limit = _limit;
         price = _price;

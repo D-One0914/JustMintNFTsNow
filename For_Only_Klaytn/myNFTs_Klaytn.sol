@@ -99,7 +99,9 @@ contract myNFT is KIP17Enumerable, Ownable, ReentrancyGuard  {
         uint _interval,
         uint _revelingBlock,
         string memory _notReveledNFTURI
-    ) KIP17(_name, _symbol) 
+    ) 
+        Ownable(msg.sender) 
+        KIP17(_name, _symbol) 
     {   
         limit = _limit;
         price = _price;
